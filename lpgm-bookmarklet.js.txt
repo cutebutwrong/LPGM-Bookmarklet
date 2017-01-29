@@ -1,0 +1,112 @@
+javascript:
+/*
+LondonPogoMap.com bookmarklet - version 0.02
+
+To use, create a bookmark in your browser and paste the entire copy of the file into the URL. When on LondonPogoMap.com, click the bookmark to enable,
+
+If you have specified your location, there will be a new menu option that shows a pretty horrible list of Pokemon nearby. Also if you click on a Pokemon it will show the distance from you to them (As The Crow Flies).
+*/
+function toRadians ( numDegrees ) {
+	return numDegrees / (Math.PI / 180);
+}
+function howFarAway(lat1,lon1,lat2,lon2) {	
+	var e = Math, ra = e.PI/180;
+	var b = lat1 * ra, c = lat2 * ra, d = b - c;
+	var g = lon1 * ra - lon2 * ra;
+	var f = 2 * e.asin(e.sqrt(e.pow(e.sin(d/2), 2) + e.cos(b) * e.cos(c) * e.pow(e.sin(g/2), 2)));
+	return Math.round(f * 6378.137 * 1000); /* metres */
+}
+function howFarFromMe(lat2,lon2) {
+	if(!isLocationSet()) {
+		return -1;
+	} else {
+		var lat1 = locationMarker.getLatLng().lat;
+		var lon1 = locationMarker.getLatLng().lng;
+		return howFarAway(lat1,lon1,lat2,lon2);
+	}
+}
+function isLocationSet() {
+	if (!locationMarker) {
+		return false;
+	} else {
+		return true;
+	}
+}
+function showDistanceFromMe (lat2,lon2) {
+	if ( isLocationSet() ) {
+		var distance = howFarFromMe(lat2,lon2);
+		var strDistance = "" + distance + "m";
+		if (distance > 1000 ) {
+			strDistance = (Math.round(distance / 100) / 10);
+			strDistance += "km";
+		}
+		return strDistance;
+	} else {
+		return "not set";
+	}
+} 
+function pkmnListString(pokemon) { 
+  var disguiseString = "";
+  if (pokemon.disguise != 0) {
+    disguiseString = " (" + getDisguisePokemonName(pokemon) + ")";
+  }
+  var ivString = "IV: unknown";
+  var movesetString = "Moveset: unknown";
+  if (pokemon.attack != -1 && pokemon.defence != -1 && pokemon.stamina != -1 && pokemon.move1 != -1 && pokemon.move2 != -1) {
+    ivString = "IV: "+ pokemon.attack + " | " + pokemon.defence + " | " + pokemon.stamina + " (" + Math.floor((pokemon.attack + pokemon.defence + pokemon.stamina)/45 * 100) + "%)";
+    movesetString = "Moveset: " + getMoveName(pokemon.move1) + " | " + getMoveName(pokemon.move2);
+  }
+  var positionString = pokemon.center.lat + " | " 
+  + pokemon.center.lng 
+  + " | (" + showDistanceFromMe(pokemon.center.lat,pokemon.center.lng) + ")";
+  
+  return pokemon.id+ ': ' + getPokemonName(pokemon) + disguiseString + " / " + ivString + " / " + movesetString + " / " + positionString + " / " + timeToString(pokemon.remainingTime());
+}
+function pkmnClose(pokemon) {
+	/* close is defined as 1km or less */
+	var isClose = 1000;
+	return ( howFarFromMe(pokemon.center.lat,pokemon.center.lng) <= isClose );
+}
+function generateList() {
+  var strOutput = "";
+  var strOther = "";
+  if(isLocationSet()) {
+    strOutput += "Found " + pokemons.length + " mons.\n\nClose:\n\n";
+    strOther += "\n\nFar:\n\n";
+    for(var i=0;i<pokemons.length;i++) {
+	if ( pkmnClose( pokemons[i] ) ) {
+		strOutput += pkmnListString(pokemons[i]) + "\n";
+	} else {
+		strOther += pkmnListString(pokemons[i]) + "\n";
+	}
+    }
+  } else {
+    strOutput = "Set location to generate list.";
+  }
+  alert(strOutput + strOther);
+}
+function infoWindowString(pokemon) {
+  
+  var disguiseString = "";
+  if (pokemon.disguise != 0) {
+    disguiseString = " (" + getDisguisePokemonName(pokemon) + ")";
+  }
+  
+  var ivString = "<b>IV</b>: unknown";
+  
+  var movesetString = "<b>Moveset</b>: unknown";
+  if (pokemon.attack != -1 && pokemon.defence != -1 && pokemon.stamina != -1 && pokemon.move1 != -1 && pokemon.move2 != -1) {
+    ivString = "<b>IV</b>: "+ pokemon.attack + " | " + pokemon.defence + " | " + pokemon.stamina + " (" + Math.floor((pokemon.attack + pokemon.defence + pokemon.stamina)/45 * 100) + "%)";
+    movesetString = "<b>Moveset:</b><br />" + getMoveName(pokemon.move1) + " | " + getMoveName(pokemon.move2);
+  }
+  
+  ivString += "<br />";
+  movesetString += "<br /><br />";
+  var distanceString = "";
+  if (isLocationSet() ) distanceString += "| " + showDistanceFromMe(pokemon.center.lat,pokemon.center.lng);
+  return '<b>' + getPokemonName(pokemon) + disguiseString + "</b><br />" + ivString + movesetString + timeToString(pokemon.remainingTime()) + ' | <a target="_blank" href="http://maps.google.com/maps?q=' + pokemon.center.lat + ',' + pokemon.center.lng + '&zoom=14">Maps</a> ' + distanceString;
+}
+var listLink = document.createElement("A");
+listLink.href="javascript:generateList();";
+listLink.text="List";
+document.getElementById('topbar').appendChild(listLink);
